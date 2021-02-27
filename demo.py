@@ -171,55 +171,27 @@ def train_models(X_train, y_train, X_test, y_test, lmd, verbose=False):
 
 
 if __name__ == '__main__':
-    import argparse
 
-    parser = argparse.ArgumentParser()
-    parser.add_argument("dataset", choices=["mnist", "wisc"], help="data set to analyze")
-    parser.add_argument("--verbose", action="store_true", help="display additional output")
 
-    args = parser.parse_args()
+    print('Client Model Simulation Crashes Data Set:')
 
-    if args.dataset == 'mnist':
+    # Note: as_frame default changed between scikit-learn 0.23 and 0.24
+    clim = fetch_openml('climate-model-simulation-crashes', version=1, as_frame=False)
 
-        print('MNIST handwritten digits data set:')
+    idx = np.arange(len(clim['data']))
+    np.random.shuffle(idx)
 
-        # Note: as_frame default changed between scikit-learn 0.23 and 0.24
-        mnist = fetch_openml('mnist_784', version=1, as_frame=False)
+    n = 5000
+    idx = idx[:n]
+    idx_train = idx[:2*n//3]
+    idx_test = idx[2*n//3:]
 
-        idx = np.arange(len(mnist['data']))
-        np.random.shuffle(idx)
+    X_train = clim['data'][idx_train]
+    X_test = clim['data'][idx_test]
 
-        n = 5000
-        idx = idx[:n]
-        idx_train = idx[:2*n//3]
-        idx_test = idx[2*n//3:]
+    # Note: clim['target'] is an array of string numbers, hence the comparison with '4'
+    y_train = 2*(clim['target'][idx_train] <= '4') - 1
+    y_test = 2*(clim['target'][idx_test] <= '4') - 1
 
-        X_train = mnist['data'][idx_train]
-        X_test = mnist['data'][idx_test]
+    train_models(X_train, y_train, X_test, y_test, 1.0, verbose=args.verbose)
 
-        # Note: mnist['target'] is an array of string numbers, hence the comparison with '4'
-        y_train = 2*(mnist['target'][idx_train] <= '4') - 1
-        y_test = 2*(mnist['target'][idx_test] <= '4') - 1
-
-        train_models(X_train, y_train, X_test, y_test, 1.0, verbose=args.verbose)
-
-    elif args.dataset == 'wisc':
-
-        print('Wisconsin breast cancer data set:')
-
-        wisc = load_breast_cancer()
-
-        idx = np.arange(len(wisc.target))
-        np.random.shuffle(idx)
-
-        # train on a random 2/3 and test on the remaining 1/3
-        idx_train = idx[:2*len(idx)//3]
-        idx_test = idx[2*len(idx)//3:]
-
-        X_train = wisc.data[idx_train]
-        X_test = wisc.data[idx_test]
-
-        y_train = 2 * wisc.target[idx_train] - 1  # binary -> spin
-        y_test = 2 * wisc.target[idx_test] - 1
-
-        train_models(X_train, y_train, X_test, y_test, 1.0, verbose=args.verbose)

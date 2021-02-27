@@ -1,17 +1,4 @@
-#    Copyright 2018 D-Wave Systems Inc.
-
-#    Licensed under the Apache License, Version 2.0 (the "License")
-#    you may not use this file except in compliance with the License.
-#    You may obtain a copy of the License at
-
-#        http: // www.apache.org/licenses/LICENSE-2.0
-
-#    Unless required by applicable law or agreed to in writing, software
-#    distributed under the License is distributed on an "AS IS" BASIS,
-#    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-#    See the License for the specific language governing permissions and
-#    limitations under the License.
-
+#    Copyright 2021 Boostgang.
 
 from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
 from sklearn.ensemble import AdaBoostClassifier, RandomForestClassifier, AdaBoostRegressor
@@ -20,20 +7,6 @@ from copy import deepcopy
 
 
 def weight_penalty(prediction, y, percent = 0.1): 
-    """Compute normalized penalty values for regression predictions.
-    
-    For regression we have to introduce a metric to penalize
-    differences of the prediction from the label y.
-
-    Args:
-        prediction (array):
-            Array of regression predictions.
-        y (array):
-            Array of training values.
-        percent (float):
-            Maximum deviation of the prediction from the label that is
-            not penalized.
-    """
     diff = np.abs(prediction-y)
     min_ = diff.min()
     max_ = diff.max()
@@ -43,10 +16,6 @@ def weight_penalty(prediction, y, percent = 0.1):
 
 
 class WeakClassifiers(object):
-    """
-    Collection of weak decision-tree classifiers and boosting using AdaBoost.
-    """
-
     def __init__(self, n_estimators=50, max_depth=3):
         self.n_estimators = n_estimators
         self.estimators_ = []
@@ -60,14 +29,6 @@ class WeakClassifiers(object):
                             for _ in range(self.n_estimators)]
 
     def fit(self, X, y):
-        """Fit estimators.
-
-        Args:
-            X (array):
-                2D array of features.
-            y (array):
-                1D array of labels.
-        """
 
         self.estimator_weights = np.zeros(self.n_estimators)
 
@@ -84,16 +45,6 @@ class WeakClassifiers(object):
             self.estimator_weights[i] = w
 
     def predict(self, X):
-        """Predict labels of given feature vectors.
-
-        Args:
-            X (array):
-                2D array of features.
-
-        Returns:
-            array
-        """
-
         if not hasattr(self, 'estimator_weights'):
             raise Exception('Not Fitted Error!')
 
@@ -117,9 +68,6 @@ class WeakClassifiers(object):
 
 
 class QBoostClassifier(WeakClassifiers):
-    """
-    QBoost classifier based on collection of weak decision-tree classifiers.
-    """
     def __init__(self, n_estimators=50, max_depth=3):
         super(QBoostClassifier, self).__init__(n_estimators=n_estimators,
                                               max_depth=max_depth)
@@ -305,111 +253,3 @@ class QBoostRegressor(WeakRegressor):
         return y
 
 
-class QBoostPlus(object):
-    """
-    Quantum boost existing (weak) classifiers.
-    """
-
-    def __init__(self, weak_classifier_list):
-        self.estimators_ = weak_classifier_list
-        self.n_estimators = len(self.estimators_)
-        self.estimator_weights = np.ones(self.n_estimators) #estimator weights will be binary (Dwave output)
-
-    def fit(self, X, y, sampler, lmd=0.2, **kwargs):
-
-        n_data = len(X)
-        # step 1: create QUBO
-        hij = []
-        for h in self.estimators_:
-            hij.append(h.predict(X))
-
-        hij = np.array(hij)
-        # scale hij to [-1/N, 1/N]
-        hij = 1. * hij / self.n_estimators
-
-        ## Create QUBO
-        qii = n_data * 1. / (self.n_estimators ** 2) + lmd - 2 * np.dot(hij, y)
-        qij = np.dot(hij, hij.T)
-        Q = dict()
-        Q.update(dict(((k, k), v) for (k, v) in enumerate(qii)))
-        for i in range(self.n_estimators):
-            for j in range(i + 1, self.n_estimators):
-                Q[(i, j)] = qij[i, j]
-
-        # step 3: optimize QUBO
-        res = sampler.sample_qubo(Q, label='Example - Qboost', **kwargs)
-        samples = np.array([[samp[k] for k in range(self.n_estimators)] for samp in res])
-
-        # take the optimal solution as estimator weights
-        self.estimator_weights = samples[0]
-
-    def predict(self, X):
-
-        n_data = len(X)
-        T = 0
-        y = np.zeros(n_data)
-        for i, h in enumerate(self.estimators_):
-            y0 = self.estimator_weights[i] * h.predict(X)  # prediction of weak classifier
-            y += y0
-            T += np.sum(y0)
-
-        y = np.sign(y - T / (n_data*self.n_estimators))
-
-        return y
-
-
-class QBoostPlusRegression(object):
-    """
-    Quantum boost existing (weak) regressors.
-    """
-
-    def __init__(self, weak_Regressor_list):
-        self.estimators_ = weak_Regressor_list
-        self.n_estimators = len(self.estimators_)
-        self.estimator_weights = np.ones(self.n_estimators)
-
-    def fit(self, X, y, sampler, lmd=0.2, **kwargs):
-
-        n_data = len(X)
-        # step 1: create QUBO
-        hij = []
-        for h in self.estimators_:
-            hij.append(h.predict(X))
-
-        hij = np.array(hij)
-        # scale hij to [-1/N, 1/N]
-        hij = 1. * hij / self.n_estimators
-
-        ## Create QUBO
-        qii = n_data * 1. / (self.n_estimators ** 2) + lmd - 2 * np.dot(hij, y)
-        qij = np.dot(hij, hij.T)
-        Q = dict()
-        Q.update(dict(((k, k), v) for (k, v) in enumerate(qii)))
-        for i in range(self.n_estimators):
-            for j in range(i + 1, self.n_estimators):
-                Q[(i, j)] = qij[i, j]
-
-        # step 3: optimize QUBO
-        res = sampler.sample_qubo(Q, label='Example - Qboost', **kwargs)
-        samples = np.array([[samp[k] for k in range(self.n_estimators)] for samp in res])
-
-        # take the optimal solution as estimator weights
-        self.estimator_weights = samples[0]
-
-    def predict(self, X):
-
-        n_data = len(X)
-        T = 0
-        y = np.zeros(n_data)
-        for i, h in enumerate(self.estimators_):
-            y0 = self.estimator_weights[i] * h.predict(X)  # prediction of weak classifier
-            y += y0
-            T += np.sum(y0)
-
-        norm = np.sum(self.estimator_weights)
-        if norm > 0:
-            y = y / norm
-        else:
-            y = y
-
-        return y

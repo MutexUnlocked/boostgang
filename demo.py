@@ -1,17 +1,4 @@
-#    Copyright 2018 D-Wave Systems Inc.
-
-#    Licensed under the Apache License, Version 2.0 (the "License")
-#    you may not use this file except in compliance with the License.
-#    You may obtain a copy of the License at
-
-#        http: // www.apache.org/licenses/LICENSE-2.0
-
-#    Unless required by applicable law or agreed to in writing, software
-#    distributed under the License is distributed on an "AS IS" BASIS,
-#    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-#    See the License for the specific language governing permissions and
-#    limitations under the License.
-
+#    Copyright 2021 Boostgang.
 
 from __future__ import print_function, division
 
@@ -144,30 +131,6 @@ def train_models(X_train, y_train, X_test, y_test, lmd, verbose=False):
         print('weights\n', clf3.estimator_weights)
 
     print_accuracy(y_train, y_train_dw, y_test, y_test_dw)
-
-
-    # ===============================================
-    print('\nQBoostPlus:')
-    clf4 = QBoostPlus([clf, clf2, clf3])
-    clf4.fit(X_train, y_train, emb_sampler, lmd=lmd, **DW_PARAMS)
-    y_train4 = clf4.predict(X_train)
-    y_test4 = clf4.predict(X_test)
-
-    if verbose:
-        print('weights\n', clf4.estimator_weights)
-
-    print_accuracy(y_train, y_train4, y_test, y_test4)
-
-
-    print()
-    print('=' * 28)
-    print("{:14}{:7}{:7}".format("Method", "Train", "Test"))
-    print('-' * 28)
-    for name, _y_train_pred, _y_test_pred in zip(["Adaboost", "DecisionTree", "QBoost", "QBoostIt"],
-                                                 [y_train_pred, y_train_pred2, y_train_dw, y_train4],
-                                                 [y_test_pred, y_test_pred2, y_test_dw, y_test4]):
-        print("{:14}{:<7.2f}{:<7.2f}".format(name, metric(y_train, _y_train_pred), metric(y_test, _y_test_pred)))
-    print('=' * 28)
 
 
 if __name__ == '__main__':

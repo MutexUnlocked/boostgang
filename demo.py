@@ -11,9 +11,10 @@ from sklearn.ensemble import AdaBoostClassifier
 from sklearn.datasets import load_breast_cancer, fetch_openml
 from sklearn.impute import SimpleImputer
 from dwave.system.samplers import DWaveSampler
+from sklearn.model_selection import train_test_split
 from dwave.system.composites import EmbeddingComposite
 
-from qboost import WeakClassifiers, QBoostClassifier, QBoostPlus
+from qboost import WeakClassifiers, QBoostClassifier
 
 
 def metric(y, y_pred):
@@ -135,26 +136,19 @@ def train_models(X_train, y_train, X_test, y_test, lmd, verbose=False):
 
 if __name__ == '__main__':
 
-
+    # Major changes
     print('Client Model Simulation Crashes Data Set:')
 
     # Note: as_frame default changed between scikit-learn 0.23 and 0.24
-    clim = fetch_openml('climate-model-simulation-crashes', version=1, as_frame=False)
+    X,y = fetch_openml('creditcard', version=1, return_X_y=True)
 
-    idx = np.arange(len(clim['data']))
-    np.random.shuffle(idx)
+    # train on a random 2/3 and test on the remaining 1/3
 
-    n = 5000
-    idx = idx[:n]
-    idx_train = idx[:2*n//3]
-    idx_test = idx[2*n//3:]
-
-    X_train = clim['data'][idx_train]
-    X_test = clim['data'][idx_test]
-
+    X_train, X_test, y_train, y_test = train_test_split (X,y, test_size = 0.3, random_state = 0)
     # Note: clim['target'] is an array of string numbers, hence the comparison with '4'
-    y_train = 2*(clim['target'][idx_train] <= '4') - 1
-    y_test = 2*(clim['target'][idx_test] <= '4') - 1
+    y_train = 2*(y_train == '1') - 1
+    y_test = 2*(y_test == '1') - 1
 
-    train_models(X_train, y_train, X_test, y_test, 1.0, verbose=args.verbose)
+    print(y_train)
+    train_models(X_train, y_train, X_test, y_test, 1.0)
 
